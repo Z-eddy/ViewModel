@@ -35,7 +35,8 @@ Q_INVOKABLE QVariant AbstractTableModel::data(const QModelIndex &index, int role
 	if (role==Qt::TextAlignmentRole) {
 		return int(Qt::AlignRight | Qt::AlignVCenter);
 	}
-	else if (role == Qt::DisplayRole) {
+	//加入role == Qt::EditRole后,编辑时给出默认值
+	else if (role == Qt::DisplayRole || role == Qt::EditRole) {
 		const QString rItem{ currencyAt(index.row()) };
 		if (currencyMap.value(rItem) == 0.0) {//当出现0时,比例不可能为0
 			return QString("####");
@@ -61,4 +62,26 @@ Q_INVOKABLE QVariant AbstractTableModel::headerData(int section, Qt::Orientation
 QString AbstractTableModel::currencyAt(int idx)const
 {
 	return (currencyMap.cbegin() + idx).key();
+}
+
+Qt::ItemFlags AbstractTableModel::flags(const QModelIndex &index) const
+{
+	auto tempFlags{ QAbstractItemModel::flags(index) };
+	if (index.row() != index.column()) {
+		tempFlags |= Qt::ItemIsEditable;
+	}
+	return tempFlags;
+}
+
+Q_INVOKABLE bool AbstractTableModel::setData(const QModelIndex &index, const QVariant &value, int role /*= Qt::EditRole*/)
+{
+	//索引有效、行列不等、EditRole
+	if (index.isValid() && index.row() != index.column() && role == Qt::EditRole) {
+		const QString rName{ currencyAt(index.row()) };
+		const QString cName{ currencyAt(index.column()) };
+		currencyMap.insert(rName, value.toDouble()*currencyMap.value(cName));
+		emit this->dataChanged(index, index);
+		return true;
+	}
+	return false;
 }
